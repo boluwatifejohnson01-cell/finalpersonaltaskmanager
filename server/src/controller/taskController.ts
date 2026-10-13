@@ -161,3 +161,27 @@ export const deleteTask = async (
     res.status(500).json({ message: "Server error deleting product" });
   }
 };
+
+// SEARCH TASK
+
+export const searchTask = async (req: AuthRequest, res: Response) => {
+  try {
+    const { search } = req.query;
+    const userId = req.user?._id;
+
+    const filter: Record<string, unknown> = { user: userId };
+
+    if (typeof search === "string" && search.trim()) {
+      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.$or = [
+        { title: { $regex: escaped, $options: "i" } },
+        { description: { $regex: escaped, $options: "i" } },
+      ];
+
+      const tasks = await Task.find(filter);
+      res.json(tasks);
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch tasks" });
+  }
+};

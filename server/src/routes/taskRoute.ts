@@ -5,6 +5,7 @@ import {
   getAllTasks,
   getTaskByCompleted,
   getTaskByTags,
+  searchTask,
   updateTask,
 } from "../controller/taskController";
 
@@ -24,6 +25,9 @@ router.put("/edittask/:id", updateTask);
 
 //Get Tasks by Completed
 router.get("/completed/:completed", getTaskByCompleted);
+
+//Search Task by Keyword
+router.get("/searchtask", searchTask);
 
 //Delete Task
 router.delete("/alltasks/:id", deleteTask);
