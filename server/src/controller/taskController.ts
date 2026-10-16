@@ -1,26 +1,39 @@
-import { Request, Response } from "express";
-import dotenv from "dotenv";
+import { Response } from "express";
+import mongoose from "mongoose";
 import { AuthRequest } from "../types/indexServer";
 import Task from "../models/Task";
-import mongoose from "mongoose";
 
-// Create Task (POST)
-//POST api/task
+// ---- CREATE TASK ----
+// POST /api/tasks
 export const createTask = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
   try {
-    const { title, description, duedate, tags, completed } = req.body;
+    if (!req.user) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
 
-    if (!title || !description || !duedate || !tags || !completed) {
+    const { title, description, dueDate, tags, completed } = req.body;
+
+    // completed is a boolean, so check it against undefined (false is valid)
+    if (
+      !title ||
+      !description ||
+      !dueDate ||
+      !tags ||
+      completed === undefined
+    ) {
       res.status(400).json({ message: "Please provide all required fields" });
+      return;
     }
 
     const task = await Task.create({
+      user: req.user._id, // link the task to its owner
       title,
       description,
-      duedate,
+      dueDate,
       tags,
       completed,
     });
@@ -32,28 +45,40 @@ export const createTask = async (
   }
 };
 
-// --- GET ALL TASKS ---
-// GET /api/alltasks
+// ---- GET ALL TASKS ----
+// GET /api/tasks
 export const getAllTasks = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
   try {
-    // Fetch all Tasks, newest first
-    const tasks = await Task.find({}).sort({ createdAt: -1 });
+    if (!req.user) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+
+    const tasks = await Task.find({ user: req.user._id }).sort({
+      createdAt: -1,
+    });
     res.status(200).json(tasks);
   } catch (error) {
-    res.status(500).json({ message: "Server error fetching products" });
+    console.error("Get tasks error", error);
+    res.status(500).json({ message: "Server error fetching tasks" });
   }
 };
 
-// --- GET TASK BY TAGS
-// GET /api/task/:tag
+// ---- GET TASKS BY TAG ----
+// GET /api/tasks/tag/:tag
 export const getTaskByTags = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+
     const validTags = ["Urgent", "Personal", "Work"] as const;
     const input = (req.params.tag as string).toLowerCase();
 
@@ -65,24 +90,30 @@ export const getTaskByTags = async (
       return;
     }
 
-    const tasks = await Task.find({ tags: tag }).sort({ createdAt: -1 });
+    const tasks = await Task.find({ user: req.user._id, tags: tag }).sort({
+      createdAt: -1,
+    });
 
-    if (tasks.length === 0) {
-      res.status(404).json({ message: "No tasks found for this tag" });
-      return;
-    }
-
+    // an empty list is a valid result, not a 404
     res.status(200).json(tasks);
   } catch (error) {
+    console.error("Get tasks by tag error", error);
     res.status(500).json({ message: "Server error fetching tasks by tags" });
   }
 };
 
-// GET TASK BY COMPLETED
-// GET /api/task/:completed
-
-export const getTaskByCompleted = async (req: AuthRequest, res: Response) => {
+// ---- GET TASKS BY COMPLETED ----
+// GET /api/tasks/completed/:completed
+export const getTaskByCompleted = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+
     const { completed } = req.params;
 
     if (completed !== "true" && completed !== "false") {
@@ -91,64 +122,83 @@ export const getTaskByCompleted = async (req: AuthRequest, res: Response) => {
     }
 
     const tasks = await Task.find({
+      user: req.user._id,
       completed: completed === "true",
     }).sort({ createdAt: -1 });
 
     res.status(200).json(tasks);
   } catch (error) {
+    console.error("Get tasks by completed error", error);
     res
       .status(500)
       .json({ message: "Server error fetching tasks by completed" });
   }
 };
 
-// ---- UPDATE TASK -----
-// PUT /api/edittask::id
+// ---- UPDATE TASK ----
+// PUT /api/tasks/:id
 export const updateTask = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+
     if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
       res.status(400).json({ message: "Invalid Task Id" });
       return;
     }
 
-    const task = await Task.findById(req.params.id);
+    // only find the task if it belongs to the logged-in user
+    const task = await Task.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
 
     if (!task) {
-      res.status(404).json({ message: "Task Not Found" });
+      res.status(404).json({ message: "Task not found" });
       return;
     }
 
-    // Update only provided fields using the nullish coalescing operator (??)
+    // Update only the fields that were sent
     task.title = req.body.title ?? task.title;
     task.description = req.body.description ?? task.description;
-
-    task.duedate = req.body.duedate ?? task.duedate;
+    task.dueDate = req.body.dueDate ?? task.dueDate;
     task.tags = req.body.tags ?? task.tags;
     task.completed = req.body.completed ?? task.completed;
 
     const updatedTask = await task.save();
-    res.json(updatedTask);
+    res.status(200).json(updatedTask);
   } catch (error) {
-    res.status(500).json({ message: "Server error updating Task" });
+    console.error("Update task error", error);
+    res.status(500).json({ message: "Server error updating task" });
   }
 };
 
-//---- DELETE Task----
-// DELETE /api/alltasks/:id
+// ---- DELETE TASK ----
+// DELETE /api/tasks/:id
 export const deleteTask = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
-      res.status(400).json({ message: "invalid product ID" });
+    if (!req.user) {
+      res.status(401).json({ message: "Not authorized" });
       return;
     }
 
-    const task = await Task.findById(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
+      res.status(400).json({ message: "Invalid Task Id" });
+      return;
+    }
+
+    const task = await Task.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
 
     if (!task) {
       res.status(404).json({ message: "Task not found" });
@@ -156,32 +206,45 @@ export const deleteTask = async (
     }
 
     await task.deleteOne();
-    res.status(204).json({ message: "Task deleted Successfully" });
+    // 200 (not 204), because 204 responses must not have a body
+    res.status(200).json({ message: "Task deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server error deleting product" });
+    console.error("Delete task error", error);
+    res.status(500).json({ message: "Server error deleting task" });
   }
 };
 
-// SEARCH TASK
-
-export const searchTask = async (req: AuthRequest, res: Response) => {
+// ---- SEARCH TASKS ----
+// GET /api/tasks/search?q=keyword
+export const searchTask = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
-    const { search } = req.query;
-    const userId = req.user?._id;
+    if (!req.user) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
 
-    const filter: Record<string, unknown> = { user: userId };
+    // the frontend sends "q"; "search" is also accepted
+    const keyword = req.query.q ?? req.query.search;
 
-    if (typeof search === "string" && search.trim()) {
-      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const filter: Record<string, unknown> = { user: req.user._id };
+
+    if (typeof keyword === "string" && keyword.trim()) {
+      // escape regex special characters so user input can't break the query
+      const escaped = keyword.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = [
         { title: { $regex: escaped, $options: "i" } },
         { description: { $regex: escaped, $options: "i" } },
       ];
-
-      const tasks = await Task.find(filter);
-      res.json(tasks);
     }
+
+    // always respond, even with no keyword (returns all of the user's tasks)
+    const tasks = await Task.find(filter).sort({ createdAt: -1 });
+    res.status(200).json(tasks);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch tasks" });
+    console.error("Search task error", error);
+    res.status(500).json({ message: "Failed to search tasks" });
   }
 };

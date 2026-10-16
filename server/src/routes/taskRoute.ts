@@ -8,28 +8,31 @@ import {
   searchTask,
   updateTask,
 } from "../controller/taskController";
+import { protect } from "../middlewares/authMiddleware";
 
 const router = express.Router();
 
-//Create Task Route
-router.post("/task", createTask);
+// Specific paths first, so they are never mistaken for "/tasks/:id"
 
-// Get All Task Route
-router.get("/alltasks", getAllTasks);
+// Search tasks by keyword: GET /api/tasks/search?q=...
+router.get("/tasks/search", protect, searchTask);
 
-//Get Tasks by Tag
-router.get("/task/:tag", getTaskByTags);
+// Tasks by tag: GET /api/tasks/tag/Work
+router.get("/tasks/tag/:tag", protect, getTaskByTags);
 
-//Get Tasks by Tag
-router.put("/edittask/:id", updateTask);
+// Tasks by completed status: GET /api/tasks/completed/true
+router.get("/tasks/completed/:completed", protect, getTaskByCompleted);
 
-//Get Tasks by Completed
-router.get("/completed/:completed", getTaskByCompleted);
+// Get all tasks: GET /api/tasks
+router.get("/tasks", protect, getAllTasks);
 
-//Search Task by Keyword
-router.get("/searchtask", searchTask);
+// Create task: POST /api/tasks
+router.post("/tasks", protect, createTask);
 
-//Delete Task
-router.delete("/alltasks/:id", deleteTask);
+// Update task: PUT /api/tasks/:id
+router.put("/tasks/:id", protect, updateTask);
+
+// Delete task: DELETE /api/tasks/:id
+router.delete("/tasks/:id", protect, deleteTask);
 
 export default router;

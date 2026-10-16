@@ -1,5 +1,6 @@
 import express from "express";
 import dns from "dns";
+import cors from "cors";
 import connectDB from "./config/db";
 import dotenv from "dotenv";
 import taskRoute from "./routes/taskRoute";
@@ -13,6 +14,12 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const app = express();
 
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 //Parse incoming JSON request bodies
 // limit: 10mb allows base64 images uploads in the req.body
 app.use(express.json({ limit: "10mb" }));
@@ -66,7 +73,8 @@ const startServer = async (): Promise<void> => {
 };
 
 // 404 HANDLER = catches any requests to undefined routes
-app.use((_req, res) => {
+app.use((req, res) => {
+  console.log("404 ->", req.method, req.originalUrl);
   res.status(404).json({ message: "API endpoint not found" });
 });
 

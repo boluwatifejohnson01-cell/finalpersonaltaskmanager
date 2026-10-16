@@ -3,6 +3,11 @@ import { Task } from "../types/indexServer";
 
 const taskSchema = new Schema<Task>(
   {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     title: {
       type: String,
       required: [true, "Title is Required"],
@@ -15,7 +20,7 @@ const taskSchema = new Schema<Task>(
       lowercase: true,
     },
 
-    duedate: {
+    dueDate: {
       type: Date,
       required: [true, "Date is Required"],
     },

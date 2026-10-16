@@ -1,4 +1,4 @@
-import { Document, Types } from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 import { Request } from "express";
 
 // This is the shape of a user document stored in mongoDB
@@ -28,17 +28,17 @@ export interface IUserResponse {
 
 // This is the shape each Task will take in MongoDB
 export interface Task extends Document {
-  _id: Types.ObjectId;
+  user: mongoose.Types.ObjectId;
   title: string;
   description: string;
-  duedate: Date;
+  dueDate: Date;
   tags: "Urgent" | "Personal" | "Work";
   completed: boolean;
   createdAt: Date;
 }
 
 export interface AuthRequest extends Request {
-  user?: IUser;
+  user?: IUser | undefined;
 }
 
 export interface IJwtPayload {

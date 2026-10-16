@@ -31,4 +31,6 @@ router.put("/profile", protect, updateProfile);
 //POST api/avatar -- upload a new profile picture
 router.post("/avatar", protect, upload.single("avatar"), updateAvatar); // "upload.single("avatar") means Multer will look for a field named "avatar" in the form
 
+//
+
 export default router;
