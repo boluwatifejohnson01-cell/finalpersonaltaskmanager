@@ -16,7 +16,10 @@ const app = express();
 
 app.use(
   cors({
-    origin: true,
+    origin: [
+      "https://finalpersonaltaskmanager-iqji.vercel.app/",
+      "http://localhost:5173/",
+    ],
     credentials: true,
   }),
 );
